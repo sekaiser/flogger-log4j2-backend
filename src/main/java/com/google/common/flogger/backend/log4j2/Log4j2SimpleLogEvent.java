@@ -145,6 +145,8 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
                 .forScopeAndLogSite(Metadata.empty(), logData.getMetadata())
                 .process(metadataHandler, contextData);
 
+        contextData.freeze();
+
         //Map<String, String> mdcProperties = ThreadContext.getContext();
         // The fully qualified class name of the logger instance is normally used to compute the log
         // location (file, class, method, line number) from the stacktrace. Since we already have the
