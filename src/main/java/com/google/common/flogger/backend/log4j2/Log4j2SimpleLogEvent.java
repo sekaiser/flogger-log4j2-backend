@@ -19,10 +19,10 @@ package com.google.common.flogger.backend.log4j2;
 import com.google.common.flogger.LogContext;
 import com.google.common.flogger.LogSite;
 import com.google.common.flogger.MetadataKey;
-import com.google.common.flogger.backend.KeyValueHandler;
+import com.google.common.flogger.MetadataKey.KeyValueHandler;
 import com.google.common.flogger.backend.LogData;
 import com.google.common.flogger.backend.Metadata;
-import com.google.common.flogger.backend.Tags;
+import com.google.common.flogger.context.Tags;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LogEvent;
@@ -81,8 +81,8 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
     /**
      * Emits all the key/value pairs of this Tags instance to the given consumer.
      */
-    private static void emitAllTags(Tags tags, KeyValueHandler handler) {
-        for (Map.Entry<String, SortedSet<Object>> e : tags.asMap().entrySet()) {
+    private static void emitAllTags(Tags tags, MetadataKey.KeyValueHandler handler) {
+        for (Map.Entry<String, ? extends Set<Object>> e : tags.asMap().entrySet()) {
             // Remember that tags can exist without values.
             String key = e.getKey();
             Set<Object> values = e.getValue();
@@ -163,7 +163,8 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
                 tags = LogContext.Key.TAGS.cast(metadata.getValue(n));
                 continue;
             }
-            key.emit(metadata.getValue(n), handler);
+            handler.handle(key.getLabel(), metadata.getValue(n));
+            //key.emit(metadata.getValue(n), handler);
         }
         if (tags != null) {
             emitAllTags(tags, handler);
@@ -209,15 +210,13 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
         }
 
         @Override
-        public KeyValueHandler handle(String key, Object value) {
+        public void handle(String key, Object value) {
             if (value == null) {
-                return this;
+                // do nothing
             } else if (FUNDAMENTAL_TYPES.contains(value.getClass())) {
                 contextData.putValue(key, value);
-                return this;
             } else {
                 contextData.putValue(key, value.toString());
-                return this;
             }
         }
     }

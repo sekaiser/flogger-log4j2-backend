@@ -141,6 +141,7 @@ public final class Log4j2MessageFormatter extends MessageBuilder<StringBuilder>
             try {
                 formatter.out().append(getErrorString(value, e));
             } catch (IOException impossible) {
+                // intentionally do nothing
             }
         }
     }
