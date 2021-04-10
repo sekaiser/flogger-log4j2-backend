@@ -49,7 +49,7 @@ public final class Log4j2Test {
 
     private static final MetadataKey<Integer> COUNT_KEY = MetadataKey.single("count", Integer.class);
     private static final MetadataKey<String> ID_KEY = MetadataKey.single("id", String.class);
-
+    private static final MetadataKey<String> REPEATABLE_KEY = MetadataKey.repeated("rep", String.class);
     // -------- Test setup shenanigans --------
 
     // This test code is all rather painful at the moment. It's done like this rather than using the
@@ -147,12 +147,17 @@ public final class Log4j2Test {
         backend.log(
                 FakeLogData.withPrintfStyle("Foo='%s'", "bar")
                         .addMetadata(COUNT_KEY, 23)
-                        .addMetadata(ID_KEY, "test ID"));
+                        .addMetadata(ID_KEY, "test_ID")
+                        .addMetadata(REPEATABLE_KEY, "foo")
+                        .addMetadata(REPEATABLE_KEY, "bar")
+                        .addMetadata(REPEATABLE_KEY, "baz")
+        );
 
         assertLogCount(1);
         StringMap contextData = new SortedArrayStringMap();
         contextData.putValue("count", 23);
-        contextData.putValue("id", "test ID");
+        contextData.putValue("id", "test_ID");
+        contextData.putValue("rep", "baz");
         assertLogEntry(0, INFO, "Foo='bar'", contextData);
     }
 

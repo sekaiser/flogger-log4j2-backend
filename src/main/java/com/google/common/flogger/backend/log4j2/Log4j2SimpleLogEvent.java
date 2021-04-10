@@ -16,12 +16,12 @@
 
 package com.google.common.flogger.backend.log4j2;
 
-import com.google.common.flogger.LogContext;
 import com.google.common.flogger.LogSite;
 import com.google.common.flogger.MetadataKey;
-import com.google.common.flogger.MetadataKey.KeyValueHandler;
 import com.google.common.flogger.backend.LogData;
 import com.google.common.flogger.backend.Metadata;
+import com.google.common.flogger.backend.MetadataHandler;
+import com.google.common.flogger.backend.MetadataProcessor;
 import com.google.common.flogger.context.Tags;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
@@ -32,7 +32,10 @@ import org.apache.logging.log4j.message.SimpleMessage;
 import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.apache.logging.log4j.util.StringMap;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -78,30 +81,6 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
         return new Log4j2SimpleLogEvent(logger, data, error);
     }
 
-    /**
-     * Emits all the key/value pairs of this Tags instance to the given consumer.
-     */
-    private static void emitAllTags(Tags tags, MetadataKey.KeyValueHandler handler) {
-        for (Map.Entry<String, ? extends Set<Object>> e : tags.asMap().entrySet()) {
-            // Remember that tags can exist without values.
-            String key = e.getKey();
-            Set<Object> values = e.getValue();
-            if (!values.isEmpty()) {
-                for (Object value : values) {
-                    handler.handle(key, value);
-                }
-            } else {
-                handler.handle(key, null);
-            }
-        }
-    }
-
-    private static boolean shouldFormat(MetadataKey<?> key, Log4j2MessageFormatter.MetadataPredicate metadataPredicate) {
-        // The cause is special and is never formatted like other metadata (it's also the most common,
-        // so checking for it first is good).
-        return !key.equals(LogContext.Key.LOG_CAUSE) && metadataPredicate.shouldFormat(key);
-    }
-
     @Override
     public void handleFormattedLogMessage(
             java.util.logging.Level level, String message, Throwable thrown) {
@@ -130,8 +109,43 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
         // people using the log4j specific MDC. Instead this should be supported by a LoggingContext and
         // usage of Flogger tags.
         StringMap contextData = new SortedArrayStringMap();
-        putAll(contextData, logData.getMetadata(), key -> true);
 
+        MetadataHandler<StringMap> metadataHandler = MetadataHandler
+                .builder(new MetadataHandler.ValueHandler<Object, StringMap>() {
+
+                    private final Set<Class<?>> FUNDAMENTAL_TYPES =
+                            new HashSet<Class<?>>(
+                                    Arrays.asList(
+                                            Boolean.class,
+                                            Byte.class,
+                                            Short.class,
+                                            Integer.class,
+                                            Long.class,
+                                            Float.class,
+                                            Double.class));
+
+                    // TODO: Check: It is probably better to provide a custom StringMap to handle repeatable keys,
+                    //              MultiValueStringMap, otherwise putValue becomes too expensive.
+                    // TODO: Check: What happens with respect to repeatable keys, when we change the layout to
+                    //       json based?
+                    // The current implementation only saves the last key value in case the key can repeat.
+                    @Override
+                    public void handle(MetadataKey<Object> key, Object value, StringMap context) {
+                            if (value == null) {
+                                // do nothing
+                            } else if (FUNDAMENTAL_TYPES.contains(value.getClass())) {
+                                context.putValue(key.getLabel(), value);
+                            } else {
+                                context.putValue(key.getLabel(), value.toString());
+                            }
+                    }
+                }).build();
+
+        MetadataProcessor
+                .forScopeAndLogSite(Metadata.empty(), logData.getMetadata())
+                .process(metadataHandler, contextData);
+
+        //Map<String, String> mdcProperties = ThreadContext.getContext();
         // The fully qualified class name of the logger instance is normally used to compute the log
         // location (file, class, method, line number) from the stacktrace. Since we already have the
         // log location in hand we don't need this computation. By passing in null as fully qualified
@@ -152,25 +166,6 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
                 .build();
     }
 
-    private void putAll(StringMap data, Metadata metadata, Log4j2MessageFormatter.MetadataPredicate metadataPredicate) {
-        KeyValueHandler handler = new Log4j2KeyValueHandler(data);
-        Tags tags = null;
-        for (int n = 0; n < metadata.size(); n++) {
-            MetadataKey<?> key = metadata.getKey(n);
-            if (!shouldFormat(key, metadataPredicate)) {
-                continue;
-            } else if (key.equals(LogContext.Key.TAGS)) {
-                tags = LogContext.Key.TAGS.cast(metadata.getValue(n));
-                continue;
-            }
-            handler.handle(key.getLabel(), metadata.getValue(n));
-            //key.emit(metadata.getValue(n), handler);
-        }
-        if (tags != null) {
-            emitAllTags(tags, handler);
-        }
-    }
-
     private StackTraceElement getLocationInfo() {
         LogSite logSite = logData.getLogSite();
         return new StackTraceElement(
@@ -188,36 +183,5 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
         Log4j2LogDataFormatter.appendLogData(logData, out);
         out.append("\n}");
         return out.toString();
-    }
-
-    private static class Log4j2KeyValueHandler implements KeyValueHandler {
-
-        private static final Set<Class<?>> FUNDAMENTAL_TYPES =
-                new HashSet<Class<?>>(
-                        Arrays.asList(
-                                Boolean.class,
-                                Byte.class,
-                                Short.class,
-                                Integer.class,
-                                Long.class,
-                                Float.class,
-                                Double.class));
-
-        private final StringMap contextData;
-
-        Log4j2KeyValueHandler(StringMap contextData) {
-            this.contextData = contextData;
-        }
-
-        @Override
-        public void handle(String key, Object value) {
-            if (value == null) {
-                // do nothing
-            } else if (FUNDAMENTAL_TYPES.contains(value.getClass())) {
-                contextData.putValue(key, value);
-            } else {
-                contextData.putValue(key, value.toString());
-            }
-        }
     }
 }

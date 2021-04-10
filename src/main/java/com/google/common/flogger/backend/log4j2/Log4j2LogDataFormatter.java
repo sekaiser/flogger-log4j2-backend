@@ -17,6 +17,7 @@
 package com.google.common.flogger.backend.log4j2;
 
 import com.google.common.flogger.backend.LogData;
+import com.google.common.flogger.backend.MessageUtils;
 import com.google.common.flogger.backend.Metadata;
 
 import java.util.logging.Level;
@@ -35,6 +36,8 @@ final class Log4j2LogDataFormatter {
      * receiver object with the results.
      */
     static void format(LogData logData, Log4j2MessageFormatter.SimpleLogHandler receiver) {
+        // SimpleMessageFormatter.format(.., ...) creates message ssuch as Foo='bar' [CONTEXT count=23 id="test ID" ]
+
         Log4j2MessageFormatter.format(logData, receiver);
     }
 
@@ -75,7 +78,7 @@ final class Log4j2LogDataFormatter {
             out.append(data.getTemplateContext().getMessage());
             out.append("\n  original arguments:");
             for (Object arg : data.getArguments()) {
-                out.append("\n    ").append(Log4j2MessageFormatter.safeToString(arg));
+                out.append("\n    ").append(MessageUtils.safeToString(arg));
             }
         }
         Metadata metadata = data.getMetadata();
