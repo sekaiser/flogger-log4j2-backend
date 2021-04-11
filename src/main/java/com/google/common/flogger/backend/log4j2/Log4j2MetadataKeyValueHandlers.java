@@ -16,7 +16,7 @@
 
 package com.google.common.flogger.backend.log4j2;
 
-import com.google.common.collect.Iterators;
+import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.backend.MetadataHandler;
 
 public final class Log4j2MetadataKeyValueHandlers {
@@ -25,7 +25,9 @@ public final class Log4j2MetadataKeyValueHandlers {
             (key, value, handler) -> key.emit(value, handler);
 
     private static final MetadataHandler.RepeatedValueHandler<Object, Log4j2KeyValueHandler> EMIT_REPEATED_METADATA =
-            (key, values, handler) -> handler.handle(key.getLabel(), Iterators.toString(values));
+            // Passing a list is important to not break log4j2s layout system.
+            // At this point we do not know the target format, e.g. PatternLayout vs JsonLayout
+            (key, values, handler) -> handler.handle(key.getLabel(), ImmutableList.copyOf(values));
 
     private Log4j2MetadataKeyValueHandlers() {
     }

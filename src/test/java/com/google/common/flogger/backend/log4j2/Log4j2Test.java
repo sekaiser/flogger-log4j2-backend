@@ -109,8 +109,8 @@ public final class Log4j2Test {
         contextData.forEach((k, v) -> {
             assertTrue(event.getContextData().containsKey(k));
             Object value = event.getContextData().getValue(k);
-            if (value instanceof String && ((String)value).charAt(0) == '[') {
-                assertTrue(((String)value).contains(v.toString()));
+            if (value instanceof List) {
+                assertTrue(((List) value).contains(v));
             } else {
                 assertTrue(value.equals(v));
             }
