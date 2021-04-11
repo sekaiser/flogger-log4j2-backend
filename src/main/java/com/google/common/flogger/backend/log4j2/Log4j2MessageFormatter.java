@@ -1,9 +1,29 @@
+/*
+ * Copyright (C) 2019 The Flogger Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.google.common.flogger.backend.log4j2;
 
 import com.google.common.flogger.LogContext;
 import com.google.common.flogger.LogSite;
 import com.google.common.flogger.MetadataKey;
-import com.google.common.flogger.backend.*;
+import com.google.common.flogger.backend.FormatChar;
+import com.google.common.flogger.backend.FormatOptions;
+import com.google.common.flogger.backend.LogData;
+import com.google.common.flogger.backend.Metadata;
+import com.google.common.flogger.backend.TemplateContext;
 import com.google.common.flogger.parameter.DateTimeFormat;
 import com.google.common.flogger.parameter.Parameter;
 import com.google.common.flogger.parameter.ParameterVisitor;
@@ -12,7 +32,13 @@ import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Formattable;
+import java.util.FormattableFlags;
+import java.util.Formatter;
+import java.util.Locale;
 import java.util.logging.Level;
 
 import static com.google.common.flogger.backend.FormatOptions.*;
