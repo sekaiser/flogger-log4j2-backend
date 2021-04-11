@@ -108,7 +108,12 @@ public final class Log4j2Test {
         assertThat(event.getThrown()).isNull();
         contextData.forEach((k, v) -> {
             assertTrue(event.getContextData().containsKey(k));
-            assertTrue(event.getContextData().getValue(k).equals(v));
+            Object value = event.getContextData().getValue(k);
+            if (value instanceof String && ((String)value).charAt(0) == '[') {
+                assertTrue(((String)value).contains(v.toString()));
+            } else {
+                assertTrue(value.equals(v));
+            }
         });
     }
 
