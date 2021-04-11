@@ -26,6 +26,7 @@ import com.google.common.flogger.context.Tags;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.impl.ContextDataFactory;
 import org.apache.logging.log4j.core.impl.Log4jLogEvent;
 import org.apache.logging.log4j.core.util.Throwables;
 import org.apache.logging.log4j.message.SimpleMessage;
@@ -108,42 +109,12 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
         // We could include this data here by doing 'MDC.getContext()', but we don't want to encourage
         // people using the log4j specific MDC. Instead this should be supported by a LoggingContext and
         // usage of Flogger tags.
-        StringMap contextData = new SortedArrayStringMap();
 
-        MetadataHandler<StringMap> metadataHandler = MetadataHandler
-                .builder(new MetadataHandler.ValueHandler<Object, StringMap>() {
-
-                    private final Set<Class<?>> FUNDAMENTAL_TYPES =
-                            new HashSet<Class<?>>(
-                                    Arrays.asList(
-                                            Boolean.class,
-                                            Byte.class,
-                                            Short.class,
-                                            Integer.class,
-                                            Long.class,
-                                            Float.class,
-                                            Double.class));
-
-                    // TODO: Check: It is probably better to provide a custom StringMap to handle repeatable keys,
-                    //              MultiValueStringMap, otherwise putValue becomes too expensive.
-                    // TODO: Check: What happens with respect to repeatable keys, when we change the layout to
-                    //       json based?
-                    // The current implementation only saves the last key value in case the key can repeat.
-                    @Override
-                    public void handle(MetadataKey<Object> key, Object value, StringMap context) {
-                            if (value == null) {
-                                // do nothing
-                            } else if (FUNDAMENTAL_TYPES.contains(value.getClass())) {
-                                context.putValue(key.getLabel(), value);
-                            } else {
-                                context.putValue(key.getLabel(), value.toString());
-                            }
-                    }
-                }).build();
+        StringMap contextData = ContextDataFactory.createContextData(logData.getMetadata().size());
 
         MetadataProcessor
                 .forScopeAndLogSite(Metadata.empty(), logData.getMetadata())
-                .process(metadataHandler, contextData);
+                .process(Log4j2MetadataHandler.getDefaultHandler(), new Log4j2KeyValueHandler(contextData));
 
         contextData.freeze();
 

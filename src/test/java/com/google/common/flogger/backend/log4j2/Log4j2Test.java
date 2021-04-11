@@ -20,6 +20,8 @@ import com.google.common.flogger.LogContext;
 import com.google.common.flogger.MetadataKey;
 import com.google.common.flogger.backend.LogData;
 import com.google.common.flogger.backend.LoggerBackend;
+import com.google.common.flogger.context.ScopedLoggingContext;
+import com.google.common.flogger.context.Tags;
 import com.google.common.flogger.parser.ParseException;
 import com.google.common.flogger.testing.FakeLogData;
 import com.google.common.flogger.testing.FakeLogSite;
@@ -160,6 +162,14 @@ public final class Log4j2Test {
         contextData.putValue("rep", "baz");
         assertLogEntry(0, INFO, "Foo='bar'", contextData);
     }
+
+//    @Test
+//    public void testScopedLoggingContext() {
+//        ScopedLoggingContext.getInstance()
+//                .newContext()
+//                .withTags(Tags.of("foo", "bar"))
+//                .run(() -> logger.atInfo().log("Should add tags here --> "));
+//    }
 
     @Test
     public void testLevels() {
