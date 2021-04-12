@@ -168,13 +168,13 @@ public final class Log4j2Test {
         assertLogEntry(0, INFO, "Foo='bar'", contextData);
     }
 
-//    @Test
-//    public void testScopedLoggingContext() {
-//        ScopedLoggingContext.getInstance()
-//                .newContext()
-//                .withTags(Tags.of("foo", "bar"))
-//                .run(() -> logger.atInfo().log("Should add tags here --> "));
-//    }
+    @Test
+    public void testScopedLoggingContext() {
+        ScopedLoggingContext.getInstance()
+                .newContext()
+                .withTags(Tags.of("foo", "bar"))
+                .run(() -> logger.atInfo().log("Should add tags here --> "));
+    }
 
     @Test
     public void testLevels() {
