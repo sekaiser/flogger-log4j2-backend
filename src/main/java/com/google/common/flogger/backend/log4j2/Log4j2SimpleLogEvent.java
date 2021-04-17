@@ -18,10 +18,12 @@ package com.google.common.flogger.backend.log4j2;
 
 import com.google.common.flogger.LogSite;
 import com.google.common.flogger.backend.LogData;
-import com.google.common.flogger.backend.Metadata;
 import com.google.common.flogger.backend.MetadataProcessor;
+import com.google.common.flogger.context.ContextDataProvider;
+import com.google.common.flogger.grpc.GrpcContextDataProvider;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.impl.ContextDataFactory;
 import org.apache.logging.log4j.core.impl.Log4jLogEvent;
@@ -29,7 +31,9 @@ import org.apache.logging.log4j.core.util.Throwables;
 import org.apache.logging.log4j.message.SimpleMessage;
 import org.apache.logging.log4j.util.StringMap;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Class that represents a log entry that can be written to log4j2.
@@ -104,13 +108,16 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
 
         StringMap contextData = ContextDataFactory.createContextData(logData.getMetadata().size());
 
+        ContextDataProvider contextDataProvider = GrpcContextDataProvider.getInstance();
         MetadataProcessor
-                .forScopeAndLogSite(Metadata.empty(), logData.getMetadata())
+                .forScopeAndLogSite(contextDataProvider.getMetadata(), logData.getMetadata())
                 .process(Log4j2MetadataHandler.getDefaultHandler(), new Log4j2KeyValueHandler(contextData));
 
         contextData.freeze();
 
-        //Map<String, String> mdcProperties = ThreadContext.getContext();
+        ThreadContext.ContextStack contextStack = ThreadContext.cloneStack();
+        contextStack.addAll(contextDataProvider.getTags().asMap().entrySet().stream().map(Map.Entry::toString).collect(Collectors.toSet()));
+
         // The fully qualified class name of the logger instance is normally used to compute the log
         // location (file, class, method, line number) from the stacktrace. Since we already have the
         // log location in hand we don't need this computation. By passing in null as fully qualified
@@ -128,6 +135,7 @@ final class Log4j2SimpleLogEvent implements Log4j2MessageFormatter.SimpleLogHand
                 .setIncludeLocation(true)
                 .setSource(getLocationInfo())
                 .setContextData(contextData)
+                .setContextStack(contextStack)
                 .build();
     }
 

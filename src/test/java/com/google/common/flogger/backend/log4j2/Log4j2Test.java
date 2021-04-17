@@ -22,6 +22,7 @@ import com.google.common.flogger.backend.LogData;
 import com.google.common.flogger.backend.LoggerBackend;
 import com.google.common.flogger.context.ScopedLoggingContext;
 import com.google.common.flogger.context.Tags;
+import com.google.common.flogger.grpc.GrpcContextDataProvider;
 import com.google.common.flogger.parser.ParseException;
 import com.google.common.flogger.testing.FakeLogData;
 import com.google.common.flogger.testing.FakeLogSite;
@@ -170,10 +171,39 @@ public final class Log4j2Test {
 
     @Test
     public void testScopedLoggingContext() {
-        ScopedLoggingContext.getInstance()
+        try (ScopedLoggingContext.LoggingContextCloseable ctx = GrpcContextDataProvider.getInstance()
+                .getContextApiSingleton()
                 .newContext()
-                .withTags(Tags.of("foo", "bar"))
-                .run(() -> logger.atInfo().log("Should add tags here --> "));
+                .withMetadata(COUNT_KEY, 23)
+                .withTags(Tags.builder().addTag("foo").addTag("baz", "bar").addTag("baz", "bar2").build())
+                .install()
+        ) {
+            backend.log(FakeLogData.withPrintfStyle("Foo='%s'", "bar"));
+
+            try (ScopedLoggingContext.LoggingContextCloseable ctx2 = GrpcContextDataProvider.getInstance().getContextApiSingleton()
+                    .newContext()
+                    .withMetadata(ID_KEY, "test_ID")
+                    .withTags(Tags.of("foo", "bar")).install()
+            ) {
+                backend.log(FakeLogData.withPrintfStyle("Foo='%s'", "bar"));
+            }
+
+            backend.log(FakeLogData.withPrintfStyle("Foo='%s'", "bar"));
+        }
+
+        backend.log(
+                FakeLogData.withPrintfStyle("Foo='%s'", "bar")
+                        .addMetadata(COUNT_KEY, 23)
+                        .addMetadata(ID_KEY, "test_ID")
+                        .addMetadata(REPEATABLE_KEY, "foo")
+                        .addMetadata(REPEATABLE_KEY, "bar")
+                        .addMetadata(REPEATABLE_KEY, "baz")
+        );
+
+//        ScopedLoggingContext.getInstance()
+//                .newContext()
+//                .withTags(Tags.of("foo", "bar"))
+//                .run(() -> logger.atInfo().log("Should add tags here --> "));
     }
 
     @Test
